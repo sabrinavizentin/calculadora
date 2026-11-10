@@ -1,0 +1,1244 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Calculadora Científica Acessível</title>
+<style>
+  :root{
+    --bg:#0e1116; --panel:#161a22; --panel-2:#1d222c; --line:#2b313d;
+    --text:#eef2f7; --muted:#9aa4b2; --accent:#4cc2ff; --accent-2:#7af0c0;
+    --warn:#ffb347; --danger:#ff6b6b; --radius:12px;
+    --fs:1rem;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+  body{padding:16px;line-height:1.45}
+  h1{font-size:1.25rem;margin:0 0 4px}
+  h2{font-size:1rem;margin:0 0 8px;color:var(--accent-2);text-transform:uppercase;
+    letter-spacing:.06em}
+  h4{font-size:.78rem;margin:14px 0 6px;color:var(--muted);text-transform:uppercase;
+    letter-spacing:.08em;font-weight:600}
+  .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;
+    clip:rect(0,0,0,0);white-space:nowrap;border:0}
+  .skip{position:absolute;left:-999px;top:0;background:var(--accent);color:#001;
+    padding:10px 16px;border-radius:0 0 var(--radius) 0;z-index:99;font-weight:700}
+  .skip:focus{left:0}
+  :focus-visible{outline:3px solid var(--accent);outline-offset:2px;border-radius:8px}
+
+  header{max-width:1240px;margin:0 auto 16px}
+  header p{margin:0;color:var(--muted);font-size:.9rem}
+  .badge{display:inline-block;background:var(--panel-2);border:1px solid var(--line);
+    color:var(--accent-2);border-radius:999px;padding:2px 10px;font-size:.78rem;
+    margin-left:6px;vertical-align:middle}
+
+  .layout{max-width:1240px;margin:0 auto;display:grid;gap:16px;
+    grid-template-columns:minmax(0,1fr) 320px}
+  @media (max-width:920px){ .layout{grid-template-columns:1fr} }
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    padding:14px}
+
+  /* ---------- VISOR ---------- */
+  .display{background:var(--panel-2);border:1px solid var(--line);
+    border-radius:var(--radius);padding:12px;margin-bottom:12px}
+  .display label{display:block;font-size:.75rem;color:var(--muted);
+    text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px}
+  #expr{width:100%;background:#0b0e13;color:var(--text);border:1px solid var(--line);
+    border-radius:10px;padding:12px;font-size:1.25rem;
+    font-family:ui-monospace,Consolas,"Courier New",monospace}
+  .result-row{display:flex;align-items:baseline;gap:10px;margin-top:10px}
+  .result-row .eq{color:var(--muted);font-size:1.4rem}
+  #result{font-size:1.75rem;font-weight:700;color:var(--accent-2);word-break:break-all;
+    font-family:ui-monospace,Consolas,monospace}
+  #status{min-height:1.2em;margin-top:6px;font-size:.85rem;color:var(--warn)}
+
+  /* ---------- BARRA DE FERRAMENTAS ---------- */
+  .toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+  .toolbar button{background:var(--panel-2);color:var(--text);border:1px solid var(--line);
+    border-radius:10px;padding:8px 12px;min-height:44px;font-size:.85rem;cursor:pointer}
+  .toolbar button:hover{background:#242a36}
+  .toolbar button[aria-pressed="true"]{background:var(--accent);color:#001018;
+    border-color:var(--accent);font-weight:700}
+
+  /* ---------- ABAS ---------- */
+  .tabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:8px;margin-bottom:10px;
+    border-bottom:1px solid var(--line);scrollbar-width:thin}
+  .tabs button{background:transparent;color:var(--muted);border:1px solid transparent;
+    border-radius:999px;padding:8px 14px;min-height:42px;font-size:.85rem;
+    cursor:pointer;white-space:nowrap}
+  .tabs button:hover{color:var(--text);background:var(--panel-2)}
+  .tabs button[aria-selected="true"]{background:var(--accent);color:#001018;
+    font-weight:700;border-color:var(--accent)}
+
+  /* ---------- TECLADO ---------- */
+  .keys{display:grid;grid-template-columns:repeat(var(--cols,4),minmax(0,1fr));gap:8px}
+  .key{background:var(--panel-2);color:var(--text);border:1px solid var(--line);
+    border-radius:10px;min-height:48px;padding:6px 4px;font-size:var(--fs);
+    cursor:pointer;display:flex;align-items:center;justify-content:center;
+    font-family:ui-monospace,Consolas,monospace;transition:background .12s,transform .05s}
+  .key:hover{background:#242a36;border-color:#3a4252}
+  .key:active{transform:scale(.97)}
+  .key.num{font-size:1.15rem;font-weight:600;background:#1a1f29}
+  .key.op{color:var(--accent);font-weight:700}
+  .key.accent{background:#12303f;border-color:#1c5670;color:var(--accent)}
+  .key.warn{color:var(--warn);font-weight:700}
+  .key.danger{color:var(--danger);font-weight:700}
+  .key.eq{background:var(--accent);color:#001018;font-weight:800;font-size:1.25rem}
+  .conv .key{font-size:.8rem;min-height:44px}
+  .scroll{max-height:min(52vh,520px);overflow-y:auto;padding-right:4px}
+
+  /* ---------- PAINEL LATERAL ---------- */
+  .side .card + .card{margin-top:12px}
+  #history{list-style:none;margin:0;padding:0;max-height:260px;overflow-y:auto}
+  #history li{border-bottom:1px solid var(--line);padding:8px 0;font-size:.85rem;
+    font-family:ui-monospace,monospace}
+  #history li button{background:none;border:0;color:var(--text);text-align:left;
+    width:100%;cursor:pointer;padding:4px;border-radius:6px;font:inherit}
+  #history li button:hover{background:var(--panel-2)}
+  #history .h-res{color:var(--accent-2);font-weight:700}
+  #history .h-expr{color:var(--muted);display:block;font-size:.78rem}
+
+  .setting{display:flex;align-items:center;justify-content:space-between;gap:10px;
+    padding:8px 0;font-size:.88rem;border-bottom:1px solid var(--line)}
+  .setting:last-child{border-bottom:0}
+  .setting input[type=range]{width:120px}
+  .setting button{background:var(--panel-2);border:1px solid var(--line);color:var(--text);
+    border-radius:999px;min-width:56px;min-height:36px;cursor:pointer;font-size:.8rem}
+  .setting button[aria-pressed="true"]{background:var(--accent-2);color:#001018;
+    font-weight:700;border-color:var(--accent-2)}
+  details summary{cursor:pointer;color:var(--accent);font-weight:600;padding:6px 0}
+  details p{font-size:.82rem;color:var(--muted);margin:6px 0}
+  kbd{background:var(--panel-2);border:1px solid var(--line);border-bottom-width:2px;
+    border-radius:5px;padding:1px 6px;font-size:.78rem;font-family:monospace}
+</style>
+</head>
+<body>
+
+<a class="skip" href="#calc">Ir direto para a calculadora</a>
+
+<header>
+  <h1>Calculadora Científica Acessível
+    <span class="badge" id="fnBadge">— funções</span>
+  </h1>
+  <p>Fala os resultados em voz alta e os números ao passar o mouse. Navegável 100% por teclado e leitores de tela.</p>
+</header>
+
+<div class="layout">
+
+  <!-- ================= CALCULADORA ================= -->
+  <main id="calc" class="card" aria-label="Calculadora científica">
+
+    <div class="display">
+      <label for="expr">Expressão</label>
+      <input id="expr" type="text" autocomplete="off" spellcheck="false"
+             placeholder="Ex.: sqrt(9) + 2*pi" aria-describedby="status" />
+      <div class="result-row">
+        <span class="eq" aria-hidden="true">=</span>
+        <output id="result" aria-live="polite" aria-atomic="true">0</output>
+      </div>
+      <div id="status" role="status" aria-live="polite"></div>
+    </div>
+
+    <div class="toolbar" role="group" aria-label="Ações">
+      <button type="button" id="btnEquals" class="key eq" style="min-width:120px">= Calcular</button>
+      <button type="button" id="btnSpeakExpr">🔊 Ler expressão</button>
+      <button type="button" id="btnSpeakResult">🔊 Ler resultado</button>
+      <button type="button" id="btnStop">⏹ Parar fala</button>
+    </div>
+
+    <nav class="tabs" role="tablist" aria-label="Categorias de funções" id="tabs"></nav>
+    <div id="panels"></div>
+  </main>
+
+  <!-- ================= LATERAL ================= -->
+  <aside class="side">
+
+    <section class="card">
+      <h2 id="hHist">Histórico</h2>
+      <ul id="history" aria-labelledby="hHist">
+        <li style="color:var(--muted);border:0">Nenhum cálculo ainda.</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>Voz e acessibilidade</h2>
+
+      <div class="setting">
+        <label for="tglVoice">Falar resultados</label>
+        <button type="button" id="tglVoice" aria-pressed="true" aria-labelledby="tglVoice">Ligado</button>
+      </div>
+      <div class="setting">
+        <label for="tglHover">Falar ao passar o mouse</label>
+        <button type="button" id="tglHover" aria-pressed="true" aria-labelledby="tglHover">Ligado</button>
+      </div>
+      <div class="setting">
+        <label for="tglFocus">Falar ao focar (teclado)</label>
+        <button type="button" id="tglFocus" aria-pressed="false" aria-labelledby="tglFocus">Desligado</button>
+      </div>
+      <div class="setting">
+        <label for="rate">Velocidade da fala</label>
+        <input type="range" id="rate" min="0.5" max="2" step="0.1" value="1" />
+      </div>
+      <div class="setting">
+        <label for="voiceSel">Voz</label>
+        <select id="voiceSel" style="max-width:150px;background:var(--panel-2);color:var(--text);
+          border:1px solid var(--line);border-radius:8px;padding:6px;min-height:36px"></select>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Ajuda</h2>
+      <details>
+        <summary>Atalhos de teclado</summary>
+        <p><kbd>Enter</kbd> calcula · <kbd>Esc</kbd> limpa · <kbd>Backspace</kbd> apaga.
+        Digite livremente: <code>2*pi*sqrt(9)</code>, <code>sin(30)</code>, <code>ncr(10,3)</code>.</p>
+      </details>
+      <details>
+        <summary>Como a leitura funciona</summary>
+        <p>Passe o mouse sobre qualquer tecla para ouvir o nome dela. Ao calcular, o
+        resultado é falado em voz alta. Use <em>Ler expressão</em> para revisar o que foi digitado.</p>
+      </details>
+      <details>
+        <summary>Uso com leitor de tela</summary>
+        <p>Se você usa NVDA, JAWS ou VoiceOver, desligue a opção <em>Falar ao focar</em> para
+        evitar fala duplicada. O resultado está em uma região <code>aria-live="polite"</code>.</p>
+      </details>
+    </section>
+  </aside>
+</div>
+
+<noscript><p style="color:#ff6b6b">Esta calculadora precisa de JavaScript habilitado.</p></noscript>
+
+<script>
+"use strict";
+
+/* =========================================================
+   1. CONSTANTES E MODO ANGULAR
+   ========================================================= */
+const CONSTS = {
+  pi:  Math.PI,
+  e:   Math.E,
+  tau: 2 * Math.PI,
+  phi: (1 + Math.sqrt(5)) / 2
+};
+
+const ANGLE = { mode: "deg" };
+const toRad   = x => ANGLE.mode === "deg" ? x * Math.PI / 180 : x;
+const fromRad = x => ANGLE.mode === "deg" ? x * 180 / Math.PI : x;
+
+/* =========================================================
+   2. MOTOR MATEMÁTICO — funções nativas
+   ========================================================= */
+function gamma(z){
+  const g = 7;
+  const C = [0.99999999999980993, 676.5203681218851, -1259.1392167224028,
+             771.32342877765313, -176.61502916214059, 12.507343278686905,
+             -0.13857109526572012, 9.9843695780195716e-6, 1.5056327351493116e-7];
+  if (z < 0.5) return Math.PI / (Math.sin(Math.PI * z) * gamma(1 - z));
+  z -= 1;
+  let x = C[0];
+  for (let i = 1; i < g + 2; i++) x += C[i] / (z + i);
+  const t = z + g + 0.5;
+  return Math.sqrt(2 * Math.PI) * Math.pow(t, z + 0.5) * Math.exp(-t) * x;
+}
+
+function factorial(n){
+  if (!Number.isFinite(n)) throw new Error("fatorial inválido");
+  if (Number.isInteger(n)){
+    if (n < 0) throw new Error("fatorial de negativo");
+    if (n > 170) return Infinity;
+    let r = 1; for (let i = 2; i <= n; i++) r *= i; return r;
+  }
+  return gamma(n + 1);
+}
+
+function gcd2(a, b){ a = Math.abs(a); b = Math.abs(b);
+  while (b) { [a, b] = [b, a % b]; } return a; }
+
+const FUNCS = {};
+
+/* ---- Trigonometria circular ---- */
+FUNCS.sin  = x => Math.sin(toRad(x));
+FUNCS.cos  = x => Math.cos(toRad(x));
+FUNCS.tan  = x => Math.tan(toRad(x));
+FUNCS.sec  = x => 1 / Math.cos(toRad(x));
+FUNCS.csc  = x => 1 / Math.sin(toRad(x));
+FUNCS.cot  = x => 1 / Math.tan(toRad(x));
+FUNCS.asin = x => fromRad(Math.asin(x));
+FUNCS.acos = x => fromRad(Math.acos(x));
+FUNCS.atan = x => fromRad(Math.atan(x));
+FUNCS.asec = x => fromRad(Math.acos(1 / x));
+FUNCS.acsc = x => fromRad(Math.asin(1 / x));
+FUNCS.acot = x => fromRad(Math.atan(1 / x));
+
+/* ---- Trigonometria hiperbólica ---- */
+FUNCS.sinh  = x => Math.sinh(x);
+FUNCS.cosh  = x => Math.cosh(x);
+FUNCS.tanh  = x => Math.tanh(x);
+FUNCS.sech  = x => 1 / Math.cosh(x);
+FUNCS.csch  = x => 1 / Math.sinh(x);
+FUNCS.coth  = x => 1 / Math.tanh(x);
+FUNCS.asinh = x => Math.asinh(x);
+FUNCS.acosh = x => Math.acosh(x);
+FUNCS.atanh = x => Math.atanh(x);
+FUNCS.asech = x => Math.acosh(1 / x);
+FUNCS.acsch = x => Math.asinh(1 / x);
+FUNCS.acoth = x => Math.atanh(1 / x);
+
+/* ---- Logaritmos e exponenciais ---- */
+FUNCS.ln    = x => Math.log(x);
+FUNCS.log   = (x, b) => b === undefined ? Math.log10(x) : Math.log(x) / Math.log(b);
+FUNCS.log10 = x => Math.log10(x);
+FUNCS.log2  = x => Math.log2(x);
+FUNCS.log1p = x => Math.log1p(x);
+FUNCS.exp   = x => Math.exp(x);
+FUNCS.exp2  = x => Math.pow(2, x);
+FUNCS.exp10 = x => Math.pow(10, x);
+FUNCS.expm1 = x => Math.expm1(x);
+
+/* ---- Raízes e potências ---- */
+FUNCS.sqrt    = x => Math.sqrt(x);
+FUNCS.cbrt    = x => Math.cbrt(x);
+FUNCS.sq      = x => x * x;
+FUNCS.cube    = x => x * x * x;
+FUNCS.inv     = x => 1 / x;
+FUNCS.pow     = (x, y) => Math.pow(x, y);
+FUNCS.root    = (n, x) => Math.sign(x) * Math.pow(Math.abs(x), 1 / n);
+FUNCS.nthroot = (n, x) => Math.sign(x) * Math.pow(Math.abs(x), 1 / n);
+
+/* ---- Arredondamento / utilidades numéricas ---- */
+FUNCS.abs   = x => Math.abs(x);
+FUNCS.sign  = x => Math.sign(x);
+FUNCS.floor = x => Math.floor(x);
+FUNCS.ceil  = x => Math.ceil(x);
+FUNCS.round = (x, d = 0) => { const f = Math.pow(10, d); return Math.round(x * f) / f; };
+FUNCS.trunc = x => Math.trunc(x);
+FUNCS.fix   = x => Math.trunc(x);
+FUNCS.frac  = x => x - Math.trunc(x);
+FUNCS.hypot = (...a) => Math.hypot(...a);
+FUNCS.clamp = (x, lo, hi) => Math.min(Math.max(x, lo), hi);
+FUNCS.lerp  = (a, b, t) => a + (b - a) * t;
+FUNCS.sigmoid = x => 1 / (1 + Math.exp(-x));
+FUNCS.deg   = x => x * 180 / Math.PI;
+FUNCS.rad   = x => x * Math.PI / 180;
+FUNCS.atan2 = (y, x) => fromRad(Math.atan2(y, x));
+
+/* ---- Combinatória e inteiros ---- */
+FUNCS.fact      = n => factorial(n);
+FUNCS.factorial = n => factorial(n);
+FUNCS.gamma     = z => gamma(z);
+FUNCS.ncr = (n, r) => factorial(n) / (factorial(r) * factorial(n - r));
+FUNCS.comb = (n, r) => FUNCS.ncr(n, r);
+FUNCS.npr = (n, r) => factorial(n) / factorial(n - r);
+FUNCS.perm = (n, r) => FUNCS.npr(n, r);
+FUNCS.gcd = (...a) => a.reduce((x, y) => gcd2(x, y));
+FUNCS.lcm = (...a) => a.reduce((x, y) => Math.abs(x * y) / gcd2(x, y));
+FUNCS.mod = (a, b) => ((a % b) + b) % b;
+FUNCS.rem = (a, b) => a % b;
+FUNCS.isprime = n => {
+  n = Math.trunc(n);
+  if (n < 2) return 0;
+  for (let i = 2; i * i <= n; i++) if (n % i === 0) return 0;
+  return 1;
+};
+FUNCS.nextprime = n => { let k = Math.trunc(n) + 1; while (!FUNCS.isprime(k)) k++; return k; };
+FUNCS.totient = n => {
+  n = Math.trunc(n); let r = n, m = n;
+  for (let p = 2; p * p <= m; p++) if (m % p === 0){ while (m % p === 0) m /= p; r -= r / p; }
+  if (m > 1) r -= r / m;
+  return r;
+};
+FUNCS.divisors = n => {
+  n = Math.trunc(n); let c = 0;
+  for (let i = 1; i <= Math.abs(n); i++) if (n % i === 0) c++;
+  return c;
+};
+
+/* ---- Estatística (variádicas) ---- */
+const vals = a => a.filter(v => typeof v === "number" && !Number.isNaN(v));
+FUNCS.sum  = (...a) => vals(a).reduce((s, v) => s + v, 0);
+FUNCS.prod = (...a) => vals(a).reduce((s, v) => s * v, 1);
+FUNCS.count= (...a) => vals(a).length;
+FUNCS.avg  = (...a) => FUNCS.sum(...a) / FUNCS.count(...a);
+FUNCS.mean = (...a) => FUNCS.avg(...a);
+FUNCS.min  = (...a) => Math.min(...vals(a));
+FUNCS.max  = (...a) => Math.max(...vals(a));
+FUNCS.range= (...a) => FUNCS.max(...a) - FUNCS.min(...a);
+FUNCS.median = (...a) => {
+  const v = vals(a).slice().sort((x, y) => x - y);
+  if (!v.length) throw new Error("mediana sem dados");
+  const m = Math.floor(v.length / 2);
+  return v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2;
+};
+FUNCS.mode = (...a) => {
+  const c = new Map();
+  vals(a).forEach(v => c.set(v, (c.get(v) || 0) + 1));
+  let best = null, bestC = -1;
+  c.forEach((n, v) => { if (n > bestC){ bestC = n; best = v; } });
+  return best;
+};
+FUNCS.variance = (...a) => {
+  const v = vals(a), m = FUNCS.avg(...v);
+  return v.reduce((s, x) => s + (x - m) ** 2, 0) / (v.length - 1);
+};
+FUNCS.stdev = (...a) => Math.sqrt(FUNCS.variance(...a));
+FUNCS.variancep = (...a) => {
+  const v = vals(a), m = FUNCS.avg(...v);
+  return v.reduce((s, x) => s + (x - m) ** 2, 0) / v.length;
+};
+FUNCS.stdevp = (...a) => Math.sqrt(FUNCS.variancep(...a));
+FUNCS.geomean = (...a) => Math.pow(vals(a).reduce((s, v) => s * v, 1), 1 / vals(a).length);
+FUNCS.harmean = (...a) => vals(a).length / vals(a).reduce((s, v) => s + 1 / v, 0);
+FUNCS.rms = (...a) => Math.sqrt(vals(a).reduce((s, v) => s + v * v, 0) / vals(a).length);
+
+/* ---- Bit a bit ---- */
+FUNCS.band = (...a) => a.reduce((x, y) => x & y);
+FUNCS.bor  = (...a) => a.reduce((x, y) => x | y);
+FUNCS.bxor = (...a) => a.reduce((x, y) => x ^ y);
+FUNCS.bnot = x => ~x;
+FUNCS.shl  = (x, n) => x << n;
+FUNCS.shr  = (x, n) => x >> n;
+
+/* ---- Aleatórios ---- */
+FUNCS.rand    = () => Math.random();
+FUNCS.randint = (a, b) => Math.floor(Math.random() * (b - a + 1)) + a;
+
+/* ---- Bases numéricas (retornam número, para uso em expressão) ---- */
+FUNCS.bin = s => parseInt(String(s), 2);
+FUNCS.oct = s => parseInt(String(s), 8);
+FUNCS.hex = s => parseInt(String(s), 16);
+FUNCS.dec = s => parseInt(String(s), 10);
+
+/* =========================================================
+   3. CONVERSÕES DE UNIDADES (engenharia)
+   ========================================================= */
+const CONV = [
+  // Comprimento (base: metro)
+  ["m2ft",   3.280839895013123,   "metros → pés"],
+  ["ft2m",   0.3048,              "pés → metros"],
+  ["m2in",   39.37007874015748,   "metros → polegadas"],
+  ["in2m",   0.0254,              "polegadas → metros"],
+  ["km2mi",  0.621371192237334,   "quilômetros → milhas"],
+  ["mi2km",  1.609344,            "milhas → quilômetros"],
+  ["cm2in",  0.3937007874015748,  "centímetros → polegadas"],
+  ["in2cm",  2.54,                "polegadas → centímetros"],
+  ["mm2in",  0.03937007874015748, "milímetros → polegadas"],
+  ["in2mm",  25.4,                "polegadas → milímetros"],
+  ["m2yd",   1.093613298337708,   "metros → jardas"],
+  ["yd2m",   0.9144,              "jardas → metros"],
+  ["nmi2km", 1.852,               "milhas náuticas → km"],
+  ["km2nmi", 0.5399568034557235,  "km → milhas náuticas"],
+  ["um2mm",  0.001,               "micrômetros → mm"],
+  ["mm2um",  1000,                "mm → micrômetros"],
+  // Massa (base: kg)
+  ["kg2lb",  2.2046226218487757,  "quilogramas → libras"],
+  ["lb2kg",  0.45359237,          "libras → quilogramas"],
+  ["g2oz",   0.03527396194958,    "gramas → onças"],
+  ["oz2g",   28.349523125,        "onças → gramas"],
+  ["t2kg",   1000,                "toneladas → kg"],
+  ["kg2t",   0.001,               "kg → toneladas"],
+  ["mg2g",   0.001,               "miligramas → gramas"],
+  ["g2mg",   1000,                "gramas → miligramas"],
+  ["kg2oz",  35.27396194958,      "kg → onças"],
+  ["oz2kg",  0.028349523125,      "onças → kg"],
+  // Ângulo
+  ["deg2rad",  0.017453292519943295, "graus → radianos"],
+  ["rad2deg",  57.29577951308232,    "radianos → graus"],
+  ["deg2grad", 1.1111111111111112,   "graus → grados"],
+  ["grad2deg", 0.9,                  "grados → graus"],
+  ["rad2grad", 63.66197723675814,    "radianos → grados"],
+  ["grad2rad", 0.015707963267948967, "grados → radianos"],
+  // Pressão (base: Pa)
+  ["pa2bar",   1e-5,                  "pascal → bar"],
+  ["bar2pa",   1e5,                   "bar → pascal"],
+  ["atm2pa",   101325,                "atm → pascal"],
+  ["pa2atm",   9.869232667160128e-6,  "pascal → atm"],
+  ["psi2pa",   6894.757293168361,     "psi → pascal"],
+  ["pa2psi",   0.00014503773773020923,"pascal → psi"],
+  ["atm2bar",  1.01325,               "atm → bar"],
+  ["bar2atm",  0.9869232667160128,    "bar → atm"],
+  ["kpa2psi",  0.14503773773020923,   "kPa → psi"],
+  ["psi2kpa",  6.894757293168361,     "psi → kPa"],
+  ["mmhg2pa",  133.322387415,         "mmHg → pascal"],
+  ["pa2mmhg",  0.007500615758456564,  "pascal → mmHg"],
+  // Energia (base: J)
+  ["j2cal",    0.2390057361376673,   "joule → caloria"],
+  ["cal2j",    4.184,                "caloria → joule"],
+  ["j2kwh",    2.777777777777778e-7, "joule → kWh"],
+  ["kwh2j",    3600000,              "kWh → joule"],
+  ["j2btu",    0.0009478171203133172,"joule → BTU"],
+  ["btu2j",    1055.05585262,        "BTU → joule"],
+  ["kj2kcal",  0.2390057361376673,   "kJ → kcal"],
+  ["kcal2kj",  4.184,                "kcal → kJ"],
+  // Potência (base: W)
+  ["w2hp",     0.0013410220895950279,"watt → hp"],
+  ["hp2w",     745.6998715822702,    "hp → watt"],
+  ["kw2hp",    1.3410220895950279,   "kW → hp"],
+  ["hp2kw",    0.7456998715822702,   "hp → kW"],
+  ["w2btuh",   3.412141633127942,    "watt → BTU/h"],
+  ["btuh2w",   0.2930710701722222,   "BTU/h → watt"],
+  // Velocidade (base: m/s)
+  ["ms2kmh",   3.6,                  "m/s → km/h"],
+  ["kmh2ms",   0.2777777777777778,   "km/h → m/s"],
+  ["ms2mph",   2.2369362920544025,   "m/s → mph"],
+  ["mph2ms",   0.44704,              "mph → m/s"],
+  ["knot2ms",  0.5144444444444445,   "nós → m/s"],
+  ["ms2knot",  1.9438444924406046,   "m/s → nós"],
+  ["kmh2mph",  0.621371192237334,    "km/h → mph"],
+  ["mph2kmh",  1.609344,             "mph → km/h"],
+  // Área (base: m²)
+  ["m2ft2",    10.763910416709722,   "m² → ft²"],
+  ["ft2m2",    0.09290304,           "ft² → m²"],
+  ["ha2m2",    10000,                "hectare → m²"],
+  ["m2ha",     0.0001,               "m² → hectare"],
+  ["acre2m2",  4046.8564224,         "acre → m²"],
+  ["m2acre",   0.0002471053814671653,"m² → acre"],
+  ["km2ha",    100,                  "km² → hectare"],
+  ["ha2km",    0.01,                 "hectare → km²"],
+  // Volume
+  ["l2m3",     0.001,                "litro → m³"],
+  ["m3l",      1000,                 "m³ → litro"],
+  ["l2gal",    0.26417205235814845,  "litro → galão (US)"],
+  ["gal2l",    3.785411784,          "galão → litro"],
+  ["ml2l",     0.001,                "mL → litro"],
+  ["l2ml",     1000,                 "litro → mL"],
+  ["l2qt",     1.0566882094325937,   "litro → quarto"],
+  ["qt2l",     0.946352946,          "quarto → litro"],
+  ["floz2ml",  29.5735295625,        "fl oz → mL"],
+  ["ml2floz",  0.033814022701843,    "mL → fl oz"],
+  // Dados
+  ["b2kb",     0.001,                "byte → kB"],
+  ["kb2b",     1000,                 "kB → byte"],
+  ["mb2kb",    1000,                 "MB → kB"],
+  ["gb2mb",    1000,                 "GB → MB"],
+  ["tb2gb",    1000,                 "TB → GB"],
+  ["kb2kib",   0.9765625,            "kB → KiB"],
+  ["mib2mb",   1.048576,             "MiB → MB"],
+  // Força
+  ["n2lbf",    0.2248089430997105,   "newton → lbf"],
+  ["lbf2n",    4.4482216152605,      "lbf → newton"],
+  ["n2kgf",    0.10197162129779283,  "newton → kgf"],
+  ["kgf2n",    9.80665,              "kgf → newton"],
+  ["kn2lbf",   224.8089430997105,    "kN → lbf"],
+  ["lbf2kn",   0.0044482216152605,   "lbf → kN"],
+  // Torque
+  ["nm2lbft",  0.7375621492772654,   "N·m → lbf·ft"],
+  ["lbft2nm",  1.3558179483314004,   "lbf·ft → N·m"],
+  // Frequência
+  ["hz2rpm",   60,                   "hertz → rpm"],
+  ["rpm2hz",   0.016666666666666666, "rpm → hertz"],
+  ["hz2khz",   0.001,                "hertz → kHz"],
+  ["khz2hz",   1000,                 "kHz → hertz"],
+  ["mhz2hz",   1e6,                  "MHz → hertz"],
+  ["hz2mhz",   1e-6,                 "hertz → MHz"],
+  ["ghz2hz",   1e9,                  "GHz → hertz"],
+  // Vazão / combustível
+  ["lps2gpm",  15.850323141489,      "L/s → gpm"],
+  ["gpm2lps",  0.0630901964,         "gpm → L/s"],
+  ["kml2mpg",  2.352145833,          "km/L → mpg"],
+  ["mpg2kml",  0.4251437075,         "mpg → km/L"]
+];
+CONV.forEach(([name, factor]) => { FUNCS[name] = x => x * factor; });
+
+// Temperatura (com offset)
+FUNCS.c2f = c => c * 9 / 5 + 32;
+FUNCS.f2c = f => (f - 32) * 5 / 9;
+FUNCS.c2k = c => c + 273.15;
+FUNCS.k2c = k => k - 273.15;
+FUNCS.f2k = f => (f - 32) * 5 / 9 + 273.15;
+FUNCS.k2f = k => (k - 273.15) * 9 / 5 + 32;
+
+/* =========================================================
+   4. TOKENIZER + PARSER RECURSIVO
+   ========================================================= */
+function tokenize(src){
+  const out = [];
+  let i = 0;
+  while (i < src.length){
+    const c = src[i];
+    if (/\s/.test(c)){ i++; continue; }
+    if (/[0-9.]/.test(c)){
+      const m = /^[0-9]*\.?[0-9]+([eE][+-]?[0-9]+)?/.exec(src.slice(i));
+      if (!m) throw new Error("Número inválido");
+      out.push({ t:"num", v: parseFloat(m[0]) });
+      i += m[0].length;
+      continue;
+    }
+    if (/[a-zA-Z_]/.test(c)){
+      const m = /^[a-zA-Z_][a-zA-Z0-9_]*/.exec(src.slice(i));
+      out.push({ t:"id", v: m[0] });
+      i += m[0].length;
+      continue;
+    }
+    if ("+-*/^%!(),".includes(c)){
+      out.push({ t:"op", v:c });
+      i++;
+      continue;
+    }
+    throw new Error("Caractere inválido: " + c);
+  }
+  out.push({ t:"end" });
+  return out;
+}
+
+let lastAns = 0;
+
+function evaluateExpression(src){
+  const tokens = tokenize(src);
+  let p = 0;
+
+  const peek = () => tokens[p];
+  const isOp = v => tokens[p].t === "op" && tokens[p].v === v;
+  const expect = v => { if (!isOp(v)) throw new Error("Esperado '" + v + "'"); p++; };
+
+  function parseExpression(){
+    let v = parseMul();
+    for (;;){
+      const t = peek();
+      if (t.t === "op" && (t.v === "+" || t.v === "-")){
+        p++;
+        const r = parseMul();
+        v = t.v === "+" ? v + r : v - r;
+      } else break;
+    }
+    return v;
+  }
+
+  function parseMul(){
+    let v = parseUnary();
+    for (;;){
+      const t = peek();
+      if (t.t === "op" && (t.v === "*" || t.v === "/" || t.v === "%")){
+        p++;
+        const r = parseUnary();
+        v = t.v === "*" ? v * r : t.v === "/" ? v / r : v % r;
+        continue;
+      }
+      // multiplicação implícita: 2pi, 3(4), 2sin(30)
+      if (t.t === "id" || (t.t === "op" && t.v === "(")){
+        v = v * parseUnary();
+        continue;
+      }
+      break;
+    }
+    return v;
+  }
+
+  function parseUnary(){
+    const t = peek();
+    if (t.t === "op" && (t.v === "-" || t.v === "+")){
+      p++;
+      const v = parseUnary();
+      return t.v === "-" ? -v : v;
+    }
+    return parsePow();
+  }
+
+  function parsePow(){
+    const base = parsePostfix();
+    if (isOp("^")){
+      p++;
+      return Math.pow(base, parseUnary()); // associa à direita
+    }
+    return base;
+  }
+
+  function parsePostfix(){
+    let v = parsePrimary();
+    while (isOp("!")){ p++; v = factorial(v); }
+    return v;
+  }
+
+  function parsePrimary(){
+    const t = peek();
+    if (t.t === "num"){ p++; return t.v; }
+
+    if (t.t === "id"){
+      const name = t.v.toLowerCase();
+      p++;
+      if (isOp("(")){
+        p++;
+        const args = [];
+        if (!isOp(")")){
+          args.push(parseExpression());
+          while (isOp(",")){ p++; args.push(parseExpression()); }
+        }
+        expect(")");
+        return callFunc(name, args);
+      }
+      if (name in CONSTS) return CONSTS[name];
+      if (name === "ans") return lastAns;
+      if (name === "m")    return MEMORY;
+      if (name in FUNCS) throw new Error('"' + name + '" precisa de parênteses');
+      throw new Error("Nome desconhecido: " + name);
+    }
+
+    if (isOp("(")){ p++; const v = parseExpression(); expect(")"); return v; }
+    throw new Error("Expressão incompleta");
+  }
+
+  const value = parseExpression();
+  if (p < tokens.length - 1) throw new Error("Símbolo inesperado: " + tokens[p].v);
+  return value;
+}
+
+function callFunc(name, args){
+  const fn = FUNCS[name];
+  if (!fn) throw new Error("Função desconhecida: " + name);
+  const r = fn(...args);
+  if (typeof r !== "number") throw new Error('"' + name + '" retornou valor inválido');
+  if (Number.isNaN(r)) throw new Error("Domínio inválido para " + name);
+  return r;
+}
+
+/* =========================================================
+   5. FORMATAÇÃO E VOZ
+   ========================================================= */
+function formatNumber(n){
+  if (typeof n !== "number") return String(n);
+  if (Number.isNaN(n)) return "NaN";
+  if (!isFinite(n)) return n > 0 ? "∞" : "−∞";
+  if (Number.isInteger(n) && Math.abs(n) < 1e15) return String(n);
+  const r = parseFloat(n.toPrecision(12));
+  return String(r).replace(".", ",");
+}
+
+const VOICE = {
+  enabled: true,
+  hover: true,
+  focus: false,
+  rate: 1,
+  voice: null
+};
+
+function speak(text, interrupt = true){
+  if (!VOICE.enabled || !("speechSynthesis" in window) || !text) return;
+  if (interrupt) speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang  = "pt-BR";
+  u.rate  = VOICE.rate;
+  u.pitch = 1;
+  if (VOICE.voice) u.voice = VOICE.voice;
+  speechSynthesis.speak(u);
+}
+
+function loadVoices(){
+  const sel = document.getElementById("voiceSel");
+  const list = speechSynthesis.getVoices();
+  if (!list.length) return;
+  sel.innerHTML = "";
+  const pt = list.filter(v => /^pt/i.test(v.lang));
+  const pool = pt.length ? pt : list;
+  pool.forEach((v, i) => {
+    const o = document.createElement("option");
+    o.value = i;
+    o.textContent = v.name + " (" + v.lang + ")";
+    sel.appendChild(o);
+  });
+  VOICE.voice = pool[0] || null;
+  sel.addEventListener("change", () => { VOICE.voice = pool[+sel.value] || null; });
+}
+if ("speechSynthesis" in window){
+  speechSynthesis.onvoiceschanged = loadVoices;
+  loadVoices();
+}
+
+/* =========================================================
+   6. ESTADO DA CALCULADORA
+   ========================================================= */
+let MEMORY = 0;
+const exprInput = document.getElementById("expr");
+const resultEl  = document.getElementById("result");
+const statusEl  = document.getElementById("status");
+const historyEl = document.getElementById("history");
+
+function setStatus(msg){ statusEl.textContent = msg || ""; }
+
+function insertText(text){
+  const s = exprInput.selectionStart ?? exprInput.value.length;
+  const e = exprInput.selectionEnd   ?? s;
+  const before = exprInput.value.slice(0, s);
+  const after  = exprInput.value.slice(e);
+
+  // Auto-fecha parênteses de funções: "sin(" vira "sin()" com cursor dentro
+  if (text.endsWith("(")){
+    exprInput.value = before + text + ")" + after;
+    exprInput.focus();
+    exprInput.setSelectionRange(s + text.length, s + text.length);
+    return;
+  }
+  exprInput.value = before + text + after;
+  exprInput.focus();
+  const pos = s + text.length;
+  exprInput.setSelectionRange(pos, pos);
+}
+
+function clearAll(){
+  exprInput.value = "";
+  resultEl.textContent = "0";
+  setStatus("");
+  exprInput.focus();
+  speak("Limpo");
+}
+
+function backspace(){
+  const s = exprInput.selectionStart ?? exprInput.value.length;
+  const e = exprInput.selectionEnd   ?? s;
+  if (s !== e){
+    exprInput.value = exprInput.value.slice(0, s) + exprInput.value.slice(e);
+    exprInput.setSelectionRange(s, s);
+  } else if (s > 0){
+    exprInput.value = exprInput.value.slice(0, s - 1) + exprInput.value.slice(s);
+    exprInput.setSelectionRange(s - 1, s - 1);
+  }
+  exprInput.focus();
+}
+
+function addHistory(expr, res){
+  const empty = historyEl.querySelector("li[data-empty]");
+  if (empty) empty.remove();
+  const li = document.createElement("li");
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.innerHTML = '<span class="h-expr"></span><span class="h-res"></span>';
+  btn.querySelector(".h-expr").textContent = expr;
+  btn.querySelector(".h-res").textContent  = "= " + res;
+  btn.setAttribute("aria-label", "Reutilizar: " + expr + " igual a " + res);
+  btn.addEventListener("click", () => { exprInput.value = expr; exprInput.focus(); });
+  btn.addEventListener("mouseenter", () => { if (VOICE.hover) speak(expr + " igual a " + res); });
+  li.appendChild(btn);
+  historyEl.prepend(li);
+  while (historyEl.children.length > 40) historyEl.lastElementChild.remove();
+}
+
+function calculate(){
+  const src = exprInput.value.trim();
+  if (!src){ setStatus("Digite uma expressão."); speak("Digite uma expressão"); return; }
+  try {
+    const value = evaluateExpression(src);
+    lastAns = value;
+    const txt = formatNumber(value);
+    resultEl.textContent = txt;
+    setStatus("");
+    addHistory(src, txt);
+    speak("Resultado: " + txt);
+  } catch (err){
+    resultEl.textContent = "—";
+    setStatus("Erro: " + err.message);
+    speak("Erro: " + err.message);
+  }
+}
+
+/* =========================================================
+   7. DEFINIÇÃO DOS PAINÉIS DE TECLAS
+   ========================================================= */
+const K  = (l, ins, a, cls) => ({ l, ins, a, cls });
+const ACT = (l, act, a, cls) => ({ l, act, a, cls });
+
+const PANELS = [
+  {
+    id: "basic", label: "Básico", cols: 5,
+    keys: [
+      K("(", "(", "parêntese esquerdo", "op"),
+      K(")", ")", "parêntese direito",  "op"),
+      ACT("⌫", "back",  "apagar último caractere", "warn"),
+      ACT("C",  "clear", "limpar expressão", "warn"),
+      ACT("AC", "reset", "reiniciar tudo", "danger"),
+
+      K("7", "7", "sete", "num"),
+      K("8", "8", "oito", "num"),
+      K("9", "9", "nove", "num"),
+      K("÷", "/", "dividir", "op"),
+      K("√", "sqrt(", "raiz quadrada", "accent"),
+
+      K("4", "4", "quatro", "num"),
+      K("5", "5", "cinco", "num"),
+      K("6", "6", "seis", "num"),
+      K("×", "*", "multiplicar", "op"),
+      K("x²", "sq(", "elevado ao quadrado", "accent"),
+
+      K("1", "1", "um", "num"),
+      K("2", "2", "dois", "num"),
+      K("3", "3", "três", "num"),
+      K("−", "-", "subtrair", "op"),
+      K("xʸ", "^", "elevado a", "accent"),
+
+      K("0", "0", "zero", "num"),
+      K(",", ".", "vírgula decimal", "num"),
+      K("Ans", "ans", "resposta anterior", "accent"),
+      K("+", "+", "somar", "op"),
+      ACT("=", "equals", "calcular resultado", "eq"),
+
+      K("π", "pi", "pi", "accent"),
+      K("e", "e", "número de Euler", "accent"),
+      K("τ", "tau", "tau, dois pi", "accent"),
+      K("φ", "phi", "número áureo", "accent"),
+      ACT("MR", "mr", "recuperar memória", "accent"),
+
+      ACT("M+", "mplus",  "somar à memória", "accent"),
+      ACT("M−", "mminus", "subtrair da memória", "accent"),
+      ACT("MS", "ms",     "guardar na memória", "accent"),
+      ACT("MC", "mc",     "limpar memória", "warn"),
+      K("n!", "!", "fatorial", "accent")
+    ]
+  },
+
+  {
+    id: "power", label: "Potência e Raiz", cols: 4,
+    keys: [
+      K("x²",   "sq(",      "elevado ao quadrado"),
+      K("x³",   "cube(",    "elevado ao cubo"),
+      K("xʸ",   "^",        "elevado a"),
+      K("√x",   "sqrt(",    "raiz quadrada"),
+      K("∛x",   "cbrt(",    "raiz cúbica"),
+      K("ⁿ√x",  "root(",    "raiz enésima, primeiro o índice"),
+      K("1/x",  "inv(",     "inverso"),
+      K("|x|",  "abs(",     "valor absoluto"),
+      K("pow",  "pow(",     "potência, base e expoente"),
+      K("hypot","hypot(",   "hipotenusa"),
+      K("exp",  "exp(",     "exponencial"),
+      K("10ˣ",  "exp10(",   "dez elevado a"),
+      K("2ˣ",   "exp2(",    "dois elevado a"),
+      K("eˣ",   "exp(",     "e elevado a"),
+      K("mod",  "mod(",     "módulo, resto positivo"),
+      K("rem",  "rem(",     "resto da divisão")
+    ]
+  },
+
+  {
+    id: "trig", label: "Trigonometria", cols: 4,
+    keys: [
+      K("sin","sin(","seno"),      K("cos","cos(","cosseno"),
+      K("tan","tan(","tangente"),  K("cot","cot(","cotangente"),
+      K("sec","sec(","secante"),   K("csc","csc(","cossecante"),
+      K("sin⁻¹","asin(","arco seno"), K("cos⁻¹","acos(","arco cosseno"),
+      K("tan⁻¹","atan(","arco tangente"), K("cot⁻¹","acot(","arco cotangente"),
+      K("sec⁻¹","asec(","arco secante"), K("csc⁻¹","acsc(","arco cossecante"),
+      K("sinh","sinh(","seno hiperbólico"), K("cosh","cosh(","cosseno hiperbólico"),
+      K("tanh","tanh(","tangente hiperbólica"), K("coth","coth(","cotangente hiperbólica"),
+      K("sech","sech(","secante hiperbólica"), K("csch","csch(","cossecante hiperbólica"),
+      K("sinh⁻¹","asinh(","arco seno hiperbólico"), K("cosh⁻¹","acosh(","arco cosseno hiperbólico"),
+      K("tanh⁻¹","atanh(","arco tangente hiperbólica"), K("coth⁻¹","acoth(","arco cotangente hiperbólica"),
+      K("atan2","atan2(","arco tangente de y sobre x"),
+      ACT("DEG/RAD","angle","alternar graus e radianos","accent")
+    ]
+  },
+
+  {
+    id: "log", label: "Logaritmos", cols: 4,
+    keys: [
+      K("ln",   "ln(",   "logaritmo natural"),
+      K("log",  "log(",  "logaritmo base dez"),
+      K("log₂", "log2(", "logaritmo base dois"),
+      K("log₁₀","log10(","logaritmo base dez"),
+      K("logᵦ", "log(",  "logaritmo em base qualquer: log(x, base)"),
+      K("log1p","log1p(","logaritmo de um mais x"),
+      K("exp",  "exp(",  "exponencial"),
+      K("exp2", "exp2(", "dois elevado a"),
+      K("exp10","exp10(","dez elevado a"),
+      K("expm1","expm1(","exponencial menos um"),
+      K("sigmoid","sigmoid(","sigmoide"),
+      K("rad",  "rad(",  "converter graus em radianos"),
+      K("deg",  "deg(",  "converter radianos em graus"),
+      K("fix",  "fix(",  "truncar"),
+      K("frac", "frac(", "parte fracionária"),
+      K("round","round(","arredondar")
+    ]
+  },
+
+  {
+    id: "stats", label: "Estatística", cols: 4,
+    keys: [
+      K("sum",   "sum(",   "somatório"),
+      K("prod",  "prod(",  "produtório"),
+      K("avg",   "avg(",   "média aritmética"),
+      K("mean",  "mean(",  "média"),
+      K("median","median(","mediana"),
+      K("mode",  "mode(",  "moda"),
+      K("min",   "min(",   "mínimo"),
+      K("max",   "max(",   "máximo"),
+      K("range", "range(", "amplitude"),
+      K("stdev", "stdev(", "desvio padrão amostral"),
+      K("stdevp","stdevp(","desvio padrão populacional"),
+      K("var",   "variance(","variância amostral"),
+      K("varp",  "variancep(","variância populacional"),
+      K("geomean","geomean(","média geométrica"),
+      K("harmean","harmean(","média harmônica"),
+      K("rms",   "rms(",   "valor eficaz, raiz da média dos quadrados"),
+      K("count", "count(", "contagem de elementos"),
+      K("clamp", "clamp(", "limitar entre mínimo e máximo"),
+      K("lerp",  "lerp(",  "interpolação linear"),
+      K("rand",  "rand(",  "número aleatório entre zero e um"),
+      K("randint","randint(","inteiro aleatório entre a e b")
+    ]
+  },
+
+  {
+    id: "ints", label: "Inteiros e Combinatória", cols: 4,
+    keys: [
+      K("n!",    "!",       "fatorial"),
+      K("fact",  "fact(",   "fatorial"),
+      K("gamma", "gamma(",  "função gama"),
+      K("nCr",   "ncr(",    "combinação, n escolhe r"),
+      K("nPr",   "npr(",    "permutação"),
+      K("gcd",   "gcd(",    "máximo divisor comum"),
+      K("lcm",   "lcm(",    "mínimo múltiplo comum"),
+      K("mod",   "mod(",    "módulo"),
+      K("floor", "floor(",  "arredondar para baixo"),
+      K("ceil",  "ceil(",   "arredondar para cima"),
+      K("round", "round(",  "arredondar"),
+      K("trunc", "trunc(",  "truncar"),
+      K("sign",  "sign(",   "sinal"),
+      K("isprime","isprime(","testar se é primo"),
+      K("nextprime","nextprime(","próximo primo"),
+      K("totient","totient(","função totiente de Euler"),
+      K("divisors","divisors(","quantidade de divisores"),
+      K("band",  "band(",   "E bit a bit"),
+      K("bor",   "bor(",    "OU bit a bit"),
+      K("bxor",  "bxor(",   "OU exclusivo bit a bit"),
+      K("bnot",  "bnot(",   "NÃO bit a bit"),
+      K("shl",   "shl(",    "deslocar bits à esquerda"),
+      K("shr",   "shr(",    "deslocar bits à direita"),
+      K("bin",   "bin(",    "converter de binário"),
+      K("oct",   "oct(",    "converter de octal"),
+      K("hex",   "hex(",    "converter de hexadecimal")
+    ]
+  },
+
+  {
+    id: "conv", label: "Conversões", cols: 5, scroll: true, className: "conv",
+    sections: [
+      { title: "Comprimento", from: 0,  to: 16 },
+      { title: "Massa",       from: 16, to: 26 },
+      { title: "Ângulo",      from: 26, to: 32 },
+      { title: "Pressão",     from: 32, to: 44 },
+      { title: "Energia",     from: 44, to: 52 },
+      { title: "Potência",    from: 52, to: 58 },
+      { title: "Velocidade",  from: 58, to: 66 },
+      { title: "Área",        from: 66, to: 74 },
+      { title: "Volume",      from: 74, to: 84 },
+      { title: "Dados",       from: 84, to: 91 },
+      { title: "Força",       from: 91, to: 97 },
+      { title: "Torque",      from: 97, to: 99 },
+      { title: "Frequência",  from: 99, to: 106 },
+      { title: "Vazão e combustível", from: 106, to: CONV.length }
+    ],
+    keysFromConv: true
+  },
+
+  {
+    id: "const", label: "Constantes", cols: 4,
+    keys: [
+      K("π",  "pi",  "pi"),   K("e",  "e",   "número de Euler"),
+      K("τ",  "tau", "tau"),  K("φ",  "phi", "número áureo"),
+      K("Ans","ans", "resposta anterior"),
+      ACT("MR","mr","recuperar memória"),
+      K("m",  "m",   "valor da memória"),
+      K("°C→°F","c2f(","celsius para fahrenheit"),
+      K("°F→°C","f2c(","fahrenheit para celsius"),
+      K("°C→K", "c2k(","celsius para kelvin"),
+      K("K→°C", "k2c(","kelvin para celsius"),
+      K("°F→K", "f2k(","fahrenheit para kelvin"),
+      K("K→°F", "k2f(","kelvin para fahrenheit"),
+      K("deg→rad","deg2rad(","graus para radianos"),
+      K("rad→deg","rad2deg(","radianos para graus"),
+      K("g→rad",  "grad2rad(","grados para radianos")
+    ]
+  }
+];
+
+/* =========================================================
+   8. RENDERIZAÇÃO
+   ========================================================= */
+const tabsEl   = document.getElementById("tabs");
+const panelsEl = document.getElementById("panels");
+
+function makeButton(k){
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "key" + (k.cls ? " " + k.cls : "");
+  b.textContent = k.l;
+  b.setAttribute("aria-label", k.a || k.l);
+  const spoken = k.a || k.l;
+  const handler = e => { e.preventDefault(); handleKey(k); };
+
+  b.addEventListener("mouseenter", () => { if (VOICE.hover) speak(spoken); });
+  b.addEventListener("focus",      () => { if (VOICE.focus) speak(spoken); });
+  b.addEventListener("click", handler);
+  return b;
+}
+
+function buildPanel(panel){
+  const container = document.createElement("div");
+  container.id = "panel-" + panel.id;
+  container.setAttribute("role", "tabpanel");
+  container.setAttribute("aria-label", panel.label);
+
+  const inner = document.createElement("div");
+  if (panel.scroll) inner.className = "scroll";
+
+  if (panel.keysFromConv){
+    panel.sections.forEach(sec => {
+      const h = document.createElement("h4");
+      h.textContent = sec.title;
+      inner.appendChild(h);
+
+      const grid = document.createElement("div");
+      grid.className = "keys" + (panel.className ? " " + panel.className : "");
+      grid.style.setProperty("--cols", panel.cols || 4);
+      grid.setAttribute("role", "group");
+      grid.setAttribute("aria-label", sec.title);
+
+      for (let i = sec.from; i < sec.to; i++){
+        const [id, , label] = CONV[i];
+        grid.appendChild(makeButton({
+          l: label, ins: id + "(", a: label
+        }));
+      }
+      inner.appendChild(grid);
+    });
+  } else {
+    const grid = document.createElement("div");
+    grid.className = "keys";
+    grid.style.setProperty("--cols", panel.cols || 4);
+    grid.setAttribute("role", "group");
+    grid.setAttribute("aria-label", panel.label);
+    panel.keys.forEach(k => grid.appendChild(makeButton(k)));
+    inner.appendChild(grid);
+  }
+
+  container.appendChild(inner);
+  return container;
+}
+
+function selectTab(panel){
+  tabsEl.querySelectorAll("button").forEach(b => {
+    b.setAttribute("aria-selected", b.dataset.panel === panel.id ? "true" : "false");
+    b.tabIndex = b.dataset.panel === panel.id ? 0 : -1;
+  });
+  panelsEl.querySelectorAll('[role="tabpanel"]').forEach(p => {
+    p.hidden = p.id !== "panel-" + panel.id;
+  });
+}
+
+PANELS.forEach((panel, idx) => {
+  const tab = document.createElement("button");
+  tab.type = "button";
+  tab.role = "tab";
+  tab.id = "tab-" + panel.id;
+  tab.dataset.panel = panel.id;
+  tab.setAttribute("aria-selected", idx === 0 ? "true" : "false");
+  tab.setAttribute("aria-controls", "panel-" + panel.id);
+  tab.tabIndex = idx === 0 ? 0 : -1;
+  tab.textContent = panel.label;
+  tab.addEventListener("click", () => selectTab(panel));
+  tab.addEventListener("mouseenter", () => { if (VOICE.hover) speak(panel.label); });
+  tab.addEventListener("keydown", ev => {
+    if (ev.key === "ArrowRight" || ev.key === "ArrowLeft"){
+      ev.preventDefault();
+      const next = (idx + (ev.key === "ArrowRight" ? 1 : -1) + PANELS.length) % PANELS.length;
+      selectTab(PANELS[next]);
+      document.getElementById("tab-" + PANELS[next].id).focus();
+    }
+  });
+  tabsEl.appendChild(tab);
+
+  const el = buildPanel(panel);
+  if (idx !== 0) el.hidden = true;
+  panelsEl.appendChild(el);
+});
+
+/* =========================================================
+   9. AÇÕES DAS TECLAS
+   ========================================================= */
+function handleKey(k){
+  if (k.act){
+    switch (k.act){
+      case "back":   backspace(); break;
+      case "clear":  clearAll();  break;
+      case "reset":  MEMORY = 0; lastAns = 0; clearAll(); setStatus("Calculadora reiniciada."); break;
+      case "equals": calculate(); break;
+      case "angle":
+        ANGLE.mode = ANGLE.mode === "deg" ? "rad" : "deg";
+        const b = document.querySelector('[data-act="angle"], button[aria-label="alternar graus e radianos"]');
+        setStatus("Modo angular: " + (ANGLE.mode === "deg" ? "graus" : "radianos"));
+        speak("Modo " + (ANGLE.mode === "deg" ? "graus" : "radianos"));
+        break;
+      case "ms":     MEMORY = currentValue(); speak("Memória: " + formatNumber(MEMORY)); break;
+      case "mplus":  MEMORY += currentValue(); speak("Memória: " + formatNumber(MEMORY)); break;
+      case "mminus": MEMORY -= currentValue(); speak("Memória: " + formatNumber(MEMORY)); break;
+      case "mr":     insertText("m"); speak("Memória: " + formatNumber(MEMORY)); break;
+      case "mc":     MEMORY = 0; speak("Memória limpa"); break;
+    }
+    return;
+  }
+  if (k.ins !== undefined) insertText(k.ins);
+}
+
+function currentValue(){
+  const src = exprInput.value.trim();
+  if (!src) return lastAns;
+  try { return evaluateExpression(src); } catch { return lastAns; }
+}
+
+/* =========================================================
+   10. EVENTOS GLOBAIS
+   ========================================================= */
+document.getElementById("btnEquals").addEventListener("click", calculate);
+document.getElementById("btnSpeakExpr").addEventListener("click", () => {
+  const v = exprInput.value.trim();
+  speak(v ? v : "A expressão está vazia");
+});
+document.getElementById("btnSpeakResult").addEventListener("click", () => {
+  speak("Resultado: " + resultEl.textContent);
+});
+document.getElementById("btnStop").addEventListener("click", () => {
+  if ("speechSynthesis" in window) speechSynthesis.cancel();
+});
+
+exprInput.addEventListener("keydown", ev => {
+  if (ev.key === "Enter"){ ev.preventDefault(); calculate(); }
+  if (ev.key === "Escape"){ ev.preventDefault(); clearAll(); }
+});
+
+resultEl.addEventListener("mouseenter", () => {
+  if (VOICE.hover) speak("Resultado: " + resultEl.textContent);
+});
+
+/* Atalho: digitar com foco fora do campo leva o foco ao campo */
+document.addEventListener("keydown", ev => {
+  if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
+  if (document.activeElement === exprInput) return;
+  if (ev.key.length === 1 || ev.key === "Backspace") exprInput.focus();
+});
+
+/* ---- Toggles de voz ---- */
+function bindToggle(id, prop, labels){
+  const btn = document.getElementById(id);
+  btn.addEventListener("click", () => {
+    VOICE[prop] = !VOICE[prop];
+    btn.setAttribute("aria-pressed", String(VOICE[prop]));
+    btn.textContent = VOICE[prop] ? labels[0] : labels[1];
+    if (VOICE[prop]) speak(labels[0]);
+  });
+}
+bindToggle("tglVoice", "enabled", ["Ligado", "Desligado"]);
+bindToggle("tglHover", "hover",   ["Ligado", "Desligado"]);
+bindToggle("tglFocus", "focus",   ["Ligado", "Desligado"]);
+
+document.getElementById("rate").addEventListener("input", e => {
+  VOICE.rate = parseFloat(e.target.value);
+  speak("Velocidade " + VOICE.rate.toFixed(1));
+});
+
+/* ---- Contador real de funções ---- */
+document.getElementById("fnBadge").textContent =
+  (Object.keys(FUNCS).length + Object.keys(CONSTS).length) + " funções";
+
+/* ---- Foco inicial ---- */
+exprInput.focus();
+</script>
+</body>
+</html>
